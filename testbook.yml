@@ -1,0 +1,170 @@
+- hosts: localhost
+  name: test
+  gather_facts: False
+  vars:
+    assignlist:
+      - aaa = 10
+      - bbb = 'some string containing = for complexity'
+    derived: |
+      {% for item in assignlist %}
+      - { key: {{ item | regex_replace('=.*', '')}}:, value: val  }
+      {% endfor %}
+    list_of_identical_dicts:
+      - {key: k1, val: v1}
+      - {key: k2, val: v2}
+      
+          
+    users:
+      - name: john
+        email: john@example.com
+      - name: jane
+        email: jane@example.com
+      - name: fred
+        email: fred@example.com
+        password: 123!abc
+
+    network:
+      addresses:
+        private_ext:
+          - type: fixed
+            addr: 172.16.2.100
+        private_man:
+           - type: fixed
+             addr: 172.16.1.100
+           - type: floating
+             addr: 10.90.80.10        
+
+    list_dict:
+      - name: name1
+        alpha: a
+        beta: b
+      - name: name2
+        gammac: c
+        delta: d
+
+    list_dict_dict:
+      - dict_A:
+          alpha: a
+          beta: b
+      - dict_B:
+          gammac: c
+          delta: d
+          
+    list_dict_dict2:
+      - dict_B:
+          gammac: c_newval
+          delta: d_newval
+
+    list_dict_list_dict:
+      - dict_A:
+          - alpha: a
+          - beta: b
+      - dict_B:
+          - gammac: c
+          - delta: d
+          
+  tasks:
+    - name: assignlist parsing
+      debug:
+        msg: list {{ assignlist }}
+      
+    - name: assignlist parsing
+      debug:
+        msg: list {%for i in assignlist %} {{ i }} {% endfor %}
+
+    - name: show derived
+      debug:
+        msg: "{{ derived }}"
+
+    - name: show list_of_identical_dicts
+      debug:
+        msg: "{{ list_of_identical_dicts }}"
+        
+    - name: map + regexp_replace
+      debug:
+        msg: "{{ assignlist | map('regex_replace', '([^=]*)=(.*)', '\\1 is \\2' ) | list }}"
+
+
+    - name: list_dict
+      debug:
+        msg: "{{ list_dict }}"
+
+    # map(attribute) returns a list of all the dicts' "name" attribute values
+    - name: show debug if one of the dicts in list_dict has  dict['name']="name1"
+      debug:
+        msg: "{{ list_dict | map(attribute='name') | list }}"
+      when: '"name1" in list_dict | map(attribute="name") | list'
+      
+    - name: show debug if "name15" is contained in the name attribute of one of the dicts
+      debug:
+        msg: "{{ list_dict | map(attribute='name') | list }}"
+      when: '"name15" in list_dict | map(attribute="name") | list'
+
+
+    - name: list_dict_list_dict
+      debug:
+        msg: "{{ list_dict_list_dict }}"
+
+    - name: dict_dict_list_dict selectattr search
+      debug:
+        msg: '{{ network.addresses.private_man | selectattr("type", "search", "^floating$") | map(attribute="addr") | list }}'
+
+############## list_dict
+    # selectattr picks from a list of hashes those hashes that match a test
+    # Jinja Tests: https://jinja.palletsprojects.com/en/master/templates/#list-of-builtin-tests
+    # Ansible Tests: https://docs.ansible.com/ansible/latest/user_guide/playbooks_tests.html
+    - name: list_dict selectattr 
+      debug:
+        msg: "{{ users | selectattr('password', 'undefined') | map(attribute='email') | list }}"
+
+
+##############################################3
+    - name: list_dict_dict
+      debug:
+        msg: "{{ list_dict_dict }}"
+        
+    - name: merge (combine) list_dict_dict  with list_dict_dict2  
+      debug:
+        msg: "{{ list_dict_dict |combine(list_dict_dict2) }}"
+
+    - name: selectattr with test for defined of dict_A
+      debug:
+        msg: '{{ list_dict_dict | selectattr("dict_A","defined") | list }}'
+
+    - name:  set_fact when list_dict_dict has key dict_A
+      set_fact:
+        has_dict_A: '{{ list_dict_dict | selectattr("dict_A","defined") | list | length }}'
+        has_dict_NO: '{{ list_dict_dict | selectattr("dict_NO","defined") | list | length }}'
+    - name: show the new fact has_dict_A
+      debug:
+        msg: '{{ has_dict_A }}'
+    - name: show the new fact has_dict_NO
+      debug:
+        msg: '{{ has_dict_NO }}'
+    - name: only print this if has_dict_A is True
+      debug:
+        msg: has_dict_A is True
+      when: has_dict_A | bool
+    - name: only print this if has_dict_NO is True
+      debug:
+        msg: has_dict_NO is True
+      when: has_dict_NO | bool
+
+        
+    - name: selectattr, use first result item, go down further
+      debug:
+        msg: '{{ (list_dict_dict | selectattr("dict_A","defined") | list)[0].dict_A }}'
+
+    # since the Jinja values are evaluated before the ansible logic, the accessing of
+    # an undefined hash or list item leads to an error, even if the ansible when clause
+    # would prevent the message to be printed.
+    - name: selectattr NO result, go down further
+      debug:
+        msg: |
+          {% if list_dict_dict | selectattr("dict_NO","defined") | list | length > 0 %}
+          {{ (list_dict_dict | selectattr("dict_NO","defined") | list)[0].dict_A }}
+          {% endif %}
+      when: list_dict_dict | selectattr("dict_A","defined") | list | length > 0
+
+
+      
