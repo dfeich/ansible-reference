@@ -1,0 +1,23 @@
+# ref: https://opensolitude.com/2015/05/27/ansible-lookups-variables-vs-facts.html
+- name: lookups in variables vs. lookups in facts
+  hosts: localhost
+  vars:
+    var_time: "Var: {{lookup('pipe', 'date \"+%H:%M:%S\"')}}"
+
+  tasks:
+    - name: set_fact for lookup
+      set_fact:
+        newfact: "{{lookup('pipe', 'date \"+%H:%M:%S\"')}}"
+
+    - name: var expansion
+      debug:
+        var: var_time
+    - command: sleep 2
+
+    - name: same var expansion after sleep. A fresh lookup is done
+      debug: var=var_time
+
+    - name: expansion of the new fact
+      debug:
+        var: newfact
+        
