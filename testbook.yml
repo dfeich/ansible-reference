@@ -12,7 +12,11 @@
     list_of_identical_dicts:
       - {key: k1, val: v1}
       - {key: k2, val: v2}
-      
+
+    list_strings:
+      - "key1=val1"
+      - "key2 = val2"
+      - "key3= val3"
           
     users:
       - name: john
@@ -62,6 +66,18 @@
       - dict_B:
           - gammac: c
           - delta: d
+            
+    domains:
+      - name: domain1
+        attr:
+          - a: a1_val
+          - b: b1_val
+      - name: domain2
+        attr:
+          - a: a2_val
+          - b: b2_val
+          - c: c2_val  
+        
           
   tasks:
     - name: assignlist parsing
@@ -118,7 +134,7 @@
         msg: "{{ users | selectattr('password', 'undefined') | map(attribute='email') | list }}"
 
 
-##############################################3
+############### list_dict_dict
     - name: list_dict_dict
       debug:
         msg: "{{ list_dict_dict }}"
@@ -166,5 +182,55 @@
           {% endif %}
       when: list_dict_dict | selectattr("dict_A","defined") | list | length > 0
 
+    - name: list_dict_dict
+      debug:
+        msg: "{{ list_dict_dict | json_query('[*]') }}"
+        
+    - name: list_dict_dict
+      debug:
+        msg: "{{ list_dict_dict }}"
+        
+    - name: list_dict_dict
+      debug:
+        msg: "{{ list_dict_dict | json_query('[0]') }}"
+        
+    - name: list_dict_dict
+      debug:
+        msg: "{{ list_dict_dict | json_query('[*]') }}"
+        
+    - name: domains
+      debug:
+        msg: "{{ domains }}"
+        
+    - name: domains
+      debug:
+        msg: "{{ domains | map(attribute='name') | list }}"
+        
+    - name: domains
+      debug:
+        msg: "{{ domains | selectattr('name','eq','domain1') | list }}"
 
-      
+    - name: domains
+      debug:
+        msg: "{{ domains | selectattr('name','eq','domain1') | map(attribute='attr') | list }}"
+
+    # this will be nice to convert config file
+    # TODO: this method does not allow the values to contain a '='
+    - name: convert list of strings to list of lists by splitting
+      set_fact:
+        _splitres: >-
+          {{ _splitres | default([]) + [item.split('=')] }}
+      loop: '{{ list_strings }}'
+    - name: show converted list
+      debug:
+        msg: '{{ _splitres }}'
+
+    - name: convert resulting list into dict
+      set_fact:
+        _splitdict: >-
+          {{ _splitdict | default({})
+                        | combine({ item[0].strip() : item[1].strip()}) }}
+      loop: '{{ _splitres }}'
+    - name: show resulting dict
+      debug:
+        var: _splitdict
