@@ -1,0 +1,5 @@
+* Ansible test playbooks
+  A number of playbooks where I try to keep useful ansible knowledge.
+
+  Currently mainly contains examples for parsing various data structures
+  in ansible.
