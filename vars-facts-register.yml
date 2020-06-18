@@ -1,23 +1,30 @@
 # ref: https://opensolitude.com/2015/05/27/ansible-lookups-variables-vs-facts.html
+# A lookup in a fact definition will only be done once, when the fact is first set. The value will stay during the whole
+# run of the playbook.
+# A lookup defined in a var will be expanded each time this var is referenced in a task.
 - name: lookups in variables vs. lookups in facts
   hosts: localhost
+  gather_facts: False
   vars:
     var_time: "Var: {{lookup('pipe', 'date \"+%H:%M:%S\"')}}"
 
   tasks:
-    - name: set_fact for lookup
+    - name: use set_fact to assign the lookup to newfact
       set_fact:
         newfact: "{{lookup('pipe', 'date \"+%H:%M:%S\"')}}"
 
-    - name: var expansion
+    - name: show value of the normal variable defined with the same lookup
       debug:
         var: var_time
-    - command: sleep 2
+    - name: sleep for 2 seconds
+      command: sleep 2
+      changed_when: False
 
-    - name: same var expansion after sleep. A fresh lookup is done
-      debug: var=var_time
+    - name: same variable after the sleep
+      debug:
+        var: var_time
 
-    - name: expansion of the new fact
+    - name: value of the fact "newfact" that we had set initially
       debug:
         var: newfact
         
