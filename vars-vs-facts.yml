@@ -20,7 +20,7 @@
       command: sleep 2
       changed_when: False
 
-    - name: same variable after the sleep
+    - name: same normal variable after the sleep
       debug:
         var: var_time
 

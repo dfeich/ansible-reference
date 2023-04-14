@@ -1,48 +1,12 @@
 - hosts: localhost
   name: test
   gather_facts: False
+  tags: base
   vars:
-    # list of strings with assignments
-    list_of_assignm:
-      - aaa = 10
-      - bbb = 'some string containing = for complexity'
-
-    list_of_assignm2:
-      - "key1=val1"
-      - "key2 = val2"
-      - "key3= val3"
     # we can use Jinja2 templating to expand a variable definition at
     # the time of parsing
 
-    dict_from_jinja: |
-      {% for item in list_of_assignm %}
-      - { key: {{ item | regex_replace('=.*', '')}}:, value: val  }
-      {% endfor %}
-
-    list_dict:
-      - name: name1
-        alpha: a
-        beta: b
-      - name: name2
-        gammac: c
-        delta: d
-
-    # alternative way specifying the dicts
-    list_dict2:
-      - {key: k1, val: v1}
-      - {key: k2, val: v2}
-
-    # list_dict3
-    users:
-      - name: john
-        email: john@example.com
-      - name: jane
-        email: jane@example.com
-      - name: fred
-        email: fred@example.com
-        password: 123!abc
-
-    list_dict_dict:
+    list_dict_dict1:
       - dict_A:
           alpha: a
           beta: b
@@ -75,47 +39,8 @@
            - type: floating
              addr: 10.90.80.10
 
-    # a mixed layered structure
-    # list_dict_mixed
-    domains:
-      - name: domain1
-        attr:
-          - a: a1_val
-          - b: b1_val
-      - name: domain2
-        attr:
-          - a: a2_val
-          - b: b2_val
-          - c: c2_val
-
   #######################################################################
   tasks:
-    - name: 'input variable: list_of_assignm'
-      debug:
-        msg: '{{ list_of_assignm }}'
-
-    - name: Example of using map + regexp_replace on the list_of_assignm
-      debug:
-        msg: "{{ list_of_assignm | map('regex_replace', '([^=]*)=(.*)', '\\1 is \\2' ) | list }}"
-
-    - name: using jinja2 loop to compose a message string from list_of_assignm
-      debug:
-        msg: list {%for i in list_of_assignm %} {{ i }} {% endfor %}
-
-    - name: show dict we composed by assigning a jinja expression to a variable in the vars section
-      debug:
-        msg: "{{ dict_from_jinja }}"
-
-    - name: 'input variable: list_dict'
-      debug:
-        msg: "{{ list_dict }}"
-
-    # map(attribute) returns a list of all the dicts' "name" attribute values
-    - name: use map to find dicts in list_dict that have dict['name']="name1"
-      debug:
-        msg: "{{ list_dict | map(attribute='name') | list }}"
-      when: '"name1" in list_dict | map(attribute="name") | list'      
-
     - name: 'input variable: list_dict_list_dict'
       debug:
         msg: "{{ list_dict_list_dict }}"
@@ -126,44 +51,36 @@
     # selectattr search to filter a list of dicts. Here, it will only
     # pick the dicts which contain a key "type" with a value matching
     # the defined regexp search
-    - name: selectattr regexp search for "floating" in values of "type" attribute on the dict_dict_list_dict
+    - name: selectattr regexp search for "floating" in values of "type" attribute on the network dict_dict_list_dict
       debug:
-        msg: 'retrieved addresses: {{ network.addresses.private_man | selectattr("type", "search", "^floating$") | map(attribute="addr") | list }}'
-
-    ############## list_dict
-    - name: 'input variable: users'
-      debug:
-        var: users
-
-    # selectattr picks from a list of hashes those hashes that match a test
-    # Jinja Tests: https://jinja.palletsprojects.com/en/master/templates/#list-of-builtin-tests
-    # Ansible Tests: https://docs.ansible.com/ansible/latest/user_guide/playbooks_tests.html
-    - name: use selectattr to find those user dicts that do NOT have the attribute "password" defined 
-      debug:
-        msg: "{{ users | selectattr('password', 'undefined') | map(attribute='email') | list }}"
+        msg: 'retrieved addresses of type floating: {{ network.addresses.private_man | selectattr("type", "search", "^floating$") | map(attribute="addr") | list }}'
 
 
     ############### list_dict_dict
-    - name: list_dict_dict
+    - name: variable list_dict_dict1
       debug:
-        msg: "{{ list_dict_dict }}"
+        var: list_dict_dict1
         
-    - name: merge (combine) list_dict_dict  with list_dict_dict2  
+    - name: variable list_dict_dict2
       debug:
-        msg: "{{ list_dict_dict |combine(list_dict_dict2) }}"
+        var: list_dict_dict2
+        
+    - name: merge (combine) list_dict_dict with list_dict_dict2, 2 overwrites 1  
+      debug:
+        msg: "{{ list_dict_dict1 |combine(list_dict_dict2) }}"
 
-    - name: selectattr for finding dicts in list_dict_dict that have a key "dict_A" defined
+    - name: selectattr for finding dicts in list_dict_dict1 that have a key "dict_A" defined
       debug:
-        msg: '{{ list_dict_dict | selectattr("dict_A","defined") | list }}'
+        msg: '{{ list_dict_dict1 | selectattr("dict_A","defined") | list }}'
 
-    - name: demonstrates how to show the dict_A value for the 1st entry in the result list
+    - name: retrieve value of dict_A from item 0 of above result list
       debug:
-        msg: '{{ (list_dict_dict | selectattr("dict_A","defined") | list)[0].dict_A }}'
+        msg: '{{ (list_dict_dict1 | selectattr("dict_A","defined") | list)[0].dict_A }}'
 
     - name:  set_fact when list_dict_dict has key dict_A
       set_fact:
-        has_dict_A: '{{ list_dict_dict | selectattr("dict_A","defined") | list | length }}'
-        has_dict_NO: '{{ list_dict_dict | selectattr("dict_NO","defined") | list | length }}'
+        has_dict_A: '{{ list_dict_dict1 | selectattr("dict_A","defined") | list | length }}'
+        has_dict_NO: '{{ list_dict_dict1 | selectattr("dict_NO","defined") | list | length }}'
     - name: show the new fact has_dict_A
       debug:
         msg: '{{ has_dict_A }}'
@@ -179,33 +96,205 @@
         msg: has_dict_NO is True
       when: has_dict_NO | bool
 
-    # since the Jinja values are evaluated before the ansible logic, the accessing of
-    # an undefined hash or list item leads to an error, even if the ansible when-clause
-    # would prevent the message to be printed.
+    # since the Jinja values are evaluated before the ansible logic,
+    # the accessing of an undefined hash or list item leads to an
+    # error, even if the ansible when-clause would prevent the message
+    # to be printed.
     - name: selectattr NO result, go down further
       debug:
         msg: |
-          {% if list_dict_dict | selectattr("dict_NO","defined") | list | length > 0 %}
-          {{ (list_dict_dict | selectattr("dict_NO","defined") | list)[0].dict_A }}
+          {% if list_dict_dict1 | selectattr("dict_NO","defined") | list | length > 0 %}
+          {{ (list_dict_dict1 | selectattr("dict_NO","defined") | list)[0].dict_A }}
           {% endif %}
-      when: list_dict_dict | selectattr("dict_A","defined") | list | length > 0
+      when: list_dict_dict1 | selectattr("dict_A","defined") | list | length > 0
 
-    - name: list_dict_dict
+    - name: list_dict_dict1
+      tags: jq
       debug:
-        msg: "{{ list_dict_dict | json_query('[*]') }}"
+        msg: "{{ list_dict_dict1 }}"
         
-    - name: list_dict_dict
+    - name: "list_dict_dict1 | jq [0] - get first list element"
+      tags: jq
       debug:
-        msg: "{{ list_dict_dict }}"
+        msg: "{{ list_dict_dict1 | json_query('[0]') }}"
         
-    - name: list_dict_dict
+    - name: "list_dict_dict1 | jq [*] - get all list elements"
+      tags: jq
       debug:
-        msg: "{{ list_dict_dict | json_query('[0]') }}"
+        msg: "{{ list_dict_dict1 | json_query('[*]') }}"
         
-    - name: list_dict_dict
+    - name: "list_dict_dict1 | jq [*].{newhash1: dict_A, newhash2: dict_A.alpha}"
+      tags: jq
+      vars:
+        myquery: "[*].{newhash1: dict_A, newhash2: dict_A.alpha}"
       debug:
-        msg: "{{ list_dict_dict | json_query('[*]') }}"
+        msg: "{{ list_dict_dict1 | json_query(myquery) }}"
         
+
+
+- hosts: localhost
+  name: examples for operating on a list of dicts
+  gather_facts: False
+  tags: list_dict
+  vars:
+    list_dict:
+      - name: name1
+        alpha: a
+        gender: man
+        age: 30
+      - name: name2
+        beta: b
+        gender: woman
+        age: 40
+      - name: name3
+        delta: d
+        gender: woman
+        age: 20
+
+    # alternative way specifying dicts
+    list_dict2:
+      - {key: k1, val: v1}
+      - {key: k2, val: v2}
+
+    # list_dict3
+    users:
+      - name: john
+        email: john@example.com
+      - name: jane
+        email: jane@example.com
+      - name: fred
+        email: fred@example.com
+        password: 123!abc
+
+  #######################################################################
+  tasks:
+    - name: 'input variable: list_dict'
+      debug:
+        msg: "{{ list_dict }}"
+
+    # map(attribute) returns a list of all the dicts' "name" attribute values
+    - name: use map to return a list of the values for the 'name' attributes
+      debug:
+        msg: "{{ list_dict | map(attribute='name') | list }}"
+
+    - name: does the list_dict contain a dict with name=name1?
+      debug:
+        msg: "Yes"
+      when: '"name1" in list_dict | map(attribute="name") | list'
+        
+    - name: does the list_dict contain a dict with name=ARGGGH?
+      debug:
+        msg: "Yes"
+      when: '"ARGGGH" in list_dict | map(attribute="name") | list'
+        
+    - name: filter out the dict having gender=man and show it
+      debug:
+        msg: '{{ list_dict | selectattr("gender", "eq", "man") }}'
+
+    - name: filter out the dicts with age > 25
+      debug:
+        msg: '{{ list_dict | selectattr("age", ">", 25) }}'
+        
+    ############## list_dict
+    - name: 'input variable: users'
+      debug:
+        var: users
+
+    # selectattr picks from a list of hashes those hashes that match a test
+    # Jinja Tests: https://jinja.palletsprojects.com/en/master/templates/#list-of-builtin-tests
+    # Ansible Tests: https://docs.ansible.com/ansible/latest/user_guide/playbooks_tests.html
+    - name: use selectattr to find those user dicts that do NOT have the attribute "password" defined 
+      debug:
+        msg: "{{ users | selectattr('password', 'undefined') | map(attribute='email') | list }}"
+
+
+- hosts: localhost
+  name: parsing of strings that contain assignments
+  gather_facts: False
+  tags: assign_parsing
+  vars:
+    # list of strings with assignments
+    list_of_assignm:
+      - aaa = 10
+      - bbb = 'some string containing another equal = for added complexity'
+
+    list_of_assignm2:
+      - "key1=val1"
+      - "key2 = val2"
+      - "key3= val3"
+      
+    dict_from_jinja: |
+      {% for item in list_of_assignm %}
+      - { key: {{ item | regex_replace('=.*', '')}}:, value: val  }
+      {% endfor %}
+
+      
+  #######################################################################
+  tasks:
+    - name: 'input variable: list_of_assignm'
+      debug:
+        msg: '{{ list_of_assignm }}'
+
+    - name: Example of using map + regexp_replace on the list_of_assignm
+      debug:
+        msg: "{{ list_of_assignm | map('regex_replace', '([^=]*)=(.*)', '\\1 is \\2' ) | list }}"
+
+    - name: using jinja2 loop to compose a message string from list_of_assignm
+      debug:
+        msg: list {%for i in list_of_assignm %} {{ i }} {% endfor %}
+
+    - name: 'new example with input variable: list_of_assignm2'
+      debug:
+        var: list_of_assignm2
+
+    # TODO: this method does not allow the values to contain a '='
+    - name: convert list of assignment strings to list of lists by splitting at "="
+      # the _splitres list is extended in each loop using the '+'
+      set_fact:
+        _splitres: >-
+          {{ _splitres | default([]) + [item.split('=')] }}
+      loop: '{{ list_of_assignm2 }}'
+
+    - name: 'show conversion result: list of lists'
+      debug:
+        msg: '{{ _splitres }}'
+
+    - name: convert the resulting list of lists into a dict by loopig over it
+      # 'combine' is used to 
+      set_fact:
+        _splitdict: >-
+          {{ _splitdict | default({})
+                        | combine({ item[0].strip() : item[1].strip()}) }}
+      loop: '{{ _splitres }}'
+    - name: show final dict
+      debug:
+        var: _splitdict
+        
+    - name: show dict we composed by assigning a jinja expression to a variable in the vars section
+      debug:
+        msg: "{{ dict_from_jinja }}"
+
+
+        
+- hosts: localhost
+  name: parsing of a layered structure (list of dicts of dicts/list_of_dict)
+  gather_facts: False
+  tags: domain_parsing
+  vars:
+    # a mixed layered structure to describe a structure of domains,
+    # where each domain has an own name an a list of key:value
+    # attributes
+    domains:
+      - name: domain1
+        attr:
+          - a: a1_val
+          - b: b1_val
+      - name: domain2
+        attr:
+          - a: a2_val
+          - b: b2_val
+          - c: c2_val
+  tasks:
     - name: 'input variable: domains  (a list of dicts)'
       debug:
         msg: "{{ domains }}"
@@ -218,30 +307,8 @@
       debug:
         msg: "{{ domains | selectattr('name','eq','domain1') | list }}"
 
-    - name: 'From the previous result, extract the the "attr" attribute using map'
+    - name: 'From this domain1 extract the the "attr" attribute list using "map"'
       debug:
         msg: "{{ domains | selectattr('name','eq','domain1') | map(attribute='attr') | list }}"
 
-    # this will be nice to convert config file
-    - name: 'input variable: list_of_assignm2'
-      debug:
-        var: list_of_assignm2
-    # TODO: this method does not allow the values to contain a '='
-    - name: convert list of assignment strings to list of lists by splitting at "="
-      set_fact:
-        _splitres: >-
-          {{ _splitres | default([]) + [item.split('=')] }}
-      loop: '{{ list_of_assignm2 }}'
-    - name: 'show conversion result: list of lists'
-      debug:
-        msg: '{{ _splitres }}'
-
-    - name: convert the resulting list of lists into dict
-      set_fact:
-        _splitdict: >-
-          {{ _splitdict | default({})
-                        | combine({ item[0].strip() : item[1].strip()}) }}
-      loop: '{{ _splitres }}'
-    - name: show final dict
-      debug:
-        var: _splitdict
+    
