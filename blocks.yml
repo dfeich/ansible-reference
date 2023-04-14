@@ -1,0 +1,53 @@
+# declared variables do not contaminate outside of the block, but registering a
+# variable inside of a block overwrites variable declared or registered outside of the block
+#
+# you can trigger a failure by running the playbook with
+#      --tags fail
+
+- hosts: localhost
+  name: 
+  gather_facts: False
+  tags: base
+  vars:
+    declared_var: 'value declared outside of block'
+    result: 'original value of "result" declared outside of block'
+    
+  tasks:
+    - name: 'registering the variable "result" before entering the block'
+      shell: 'echo "value registered outside of block"'
+      register: result 
+    - name: starting the block
+      vars:
+        declared_var: 'value declared inside of block'
+      block:
+        - name: 'registering variable "result" inside of the block'
+          tags: always
+          shell: 'echo "value registered inside of block"'
+          register: result
+        - name: 'print registered result value inside of block'
+          tags: always
+          ansible.builtin.debug:
+            msg: "{{ result.stdout }}"
+        - name: 'print declared_var value inside of block'
+          tags: always
+          ansible.builtin.debug:
+            msg: "{{ declared_var }}"
+        - name: Force a failure
+          tags: [never,fail]
+          ansible.builtin.command: /bin/false
+      rescue:
+        - name: "running the block's rescue tasks"
+          tags: always
+          ansible.builtin.debug:
+            msg: "a rescue section task"
+      always:
+        - name: "running the block's tasks in the 'always' section"
+          tags: always
+          ansible.builtin.debug:
+            msg: "an 'always' section task"
+    - name: 'print registered result value outside of block'
+      ansible.builtin.debug:
+        msg: "{{ result.stdout }}"
+    - name: 'print declared_var value outside of block'
+      ansible.builtin.debug:
+        msg: "{{ declared_var }}"
