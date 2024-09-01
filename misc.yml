@@ -1,0 +1,39 @@
+- hosts: localhost
+  name: test
+  gather_facts: False
+  vars:
+    # list of strings with assignments
+    list_of_assignm:
+      - aaa = 10
+      - bbb = 'some string containing = for complexity'
+  tasks:
+    - name: 'input variable: list_of_assignm'
+      debug:
+        msg: '{{ list_of_assignm }}'
+
+    - name: 'find example'
+      find:
+        paths: /var/log
+        recurse: no
+        file_type: directory
+        excludes: 'nginx,mysql'
+      register: found
+
+    - name: 'find results'
+      debug:
+        msg: "{{ found }}"
+
+    - name: 'find example 2'
+      find:
+        paths: /var/log
+        recurse: no
+        patterns:
+          - '.*\.log'
+        excludes: '.*log\.\d'
+        use_regex: yes
+      register: found2
+
+    - name: 'find results'
+      debug:
+        msg: "{{ found2 }}"
+        

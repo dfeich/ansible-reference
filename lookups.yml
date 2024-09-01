@@ -1,0 +1,32 @@
+---
+- hosts: localhost
+  name: test lookups
+  gather_facts: False
+
+  tasks:
+    # Note: the default directory may be different within a role.. ansible is tricky
+    - name: 'with_fileglob in default dir'
+      ansible.builtin.debug:
+        msg: "found {{ item }}"
+      with_fileglob: '*'
+
+    - name: 'with_fileglob in playbook_dir'
+      ansible.builtin.debug:
+        msg: "found {{ item }}"
+      with_fileglob: "{{ playbook_dir }}/*"
+      
+    - name: 'fileglob lookup in playbook_dir with wantlist=True'
+      ansible.builtin.debug:
+        msg: "found {{ item }}"
+      loop: '{{ lookup("ansible.builtin.fileglob", playbook_dir + "/*", wantlist=True) }}'
+      
+    # inventory_dir is only defined if a inventory was specified
+    - name: 'Lookup with fileglob in inventory_dir (inventory must have been given!)'
+      ansible.builtin.debug:
+        msg: "found {{ item }}"
+      with_fileglob: "{{ inventory_dir }}/*"
+
+    - name: 'fileglob as a filter'
+      ansible.builtin.debug:
+        msg: 'found {{ "*" | fileglob }}'
+      
